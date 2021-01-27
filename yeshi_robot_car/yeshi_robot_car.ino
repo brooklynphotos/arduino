@@ -98,51 +98,66 @@ void loop() {
    on = false;
    return;
   }
-  // the car is still running, so let's see what to do next
-  float frontDistance = getFrontDistance();
-  if(frontDistance <= minDistance){
-    Serial.println("Distance is out of range");
-    haltCar();
-    ringBuzzer(100, 2);
-  }else{
-    Serial.println("Distance = " + String(frontDistance) + " cm");
-    if(frontDistance<SAFE_DISTANCE){
-      haltCar();
-      ringBuzzer(200, 2);
-    }
+  // the car is still running, so let's see if there are problems around
+  if(detectDanger()){
+    lookForLeeway();
   }
-  if(digitalRead(IRLeftPin) != LOW){
-    Serial.println("Left is over a cliff");
-    brakeCar();
-    ringBuzzer(500, 2);
-  }
-  if(digitalRead(IRRightPin) != LOW){
-    Serial.println("Right is over a cliff");
-    brakeCar();
-    ringBuzzer(800, 2);
-  }
+  // if we are still running, continue the car
   if(on){
     runCar();
   }
   delay(loopWait);
 }
 
+bool detectDanger(){
+  bool danger = false;
+  float frontDistance = getFrontDistance();
+  if(frontDistance <= minDistance){
+    Serial.println("Distance is out of range");
+    haltCar();
+    ringBuzzer(100, 2);
+    danger = true;
+  }else{
+    Serial.println("Distance = " + String(frontDistance) + " cm");
+    if(frontDistance<SAFE_DISTANCE){
+      haltCar();
+      ringBuzzer(200, 2);
+      danger = true;
+    }
+  }
+  if(digitalRead(IRLeftPin) != LOW){
+    Serial.println("Left is over a cliff");
+    brakeCar();
+    danger = true;
+    ringBuzzer(500, 2);
+  }
+  if(digitalRead(IRRightPin) != LOW){
+    Serial.println("Right is over a cliff");
+    brakeCar();
+    ringBuzzer(800, 2);
+    danger = true;
+  }
+  return danger;
+}
+
 float getFrontDistance(){  
   int attemptCount = 5;
-  float attempts[5];
-  for(int i=0;i<attemptCount;i++){
-    float d = getDistance(sonar);
+  int attempts[5] = {};
+  for(int a=0;a<attemptCount;a++){
+    int d = getDistance(sonar);
     for(int i=0;i<attemptCount;i++){
-      float v = attempts[i];
+      int v = attempts[i];
       if(v==0){
         attempts[i] = d;
         break; // we are done
       }else{
+        // shift everything by one
         if(d<v){
-          for(int j=i+1;j<attemptCount;j++){
+          for(int j=a;j>i;j--){
             attempts[j] = attempts[j-1];
           }
           attempts[i] = d;
+          break;
         }
       }
     }
