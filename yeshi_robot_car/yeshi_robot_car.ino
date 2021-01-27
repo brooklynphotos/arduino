@@ -44,8 +44,10 @@ Adafruit_DCMotor *motor2 = AFMS.getMotor(2);
 
 // motion constants
 const int SAFE_DISTANCE = 10;
+const int SLOW_DISTANCE = 15;
 const int MAX_SPEED = 255;
 const int MIN_SPEED = 100;
+const int SLOW_SPEED = (MAX_SPEED + MIN_SPEED) / 2;
 
 // globals for the state of the car
 int frontDistance = 0;
@@ -82,6 +84,9 @@ void shutdownMusic(int count, int silentTime){
 }
 
 void loop() {
+//  Serial.println(getFrontDistance());
+//  delay(100);
+//  return;
   Serial.println("Car on: "+String(on));
   byte switchVal = digitalRead(switchPin);
   // is the switch pressed?
@@ -100,7 +105,10 @@ void loop() {
   }
   // the car is still running, so let's see if there are problems around
   if(detectDanger()){
-    lookForLeeway();
+    float leeway = lookForLeeway();
+    if(leeway < 0){
+      haltCar();
+    }
   }
   // if we are still running, continue the car
   if(on){
@@ -110,17 +118,18 @@ void loop() {
 }
 
 bool detectDanger(){
+  Serial.println("Detecting problems...");
   bool danger = false;
   float frontDistance = getFrontDistance();
   if(frontDistance <= minDistance){
     Serial.println("Distance is out of range");
-    haltCar();
+    brakeCar();
     ringBuzzer(100, 2);
     danger = true;
   }else{
     Serial.println("Distance = " + String(frontDistance) + " cm");
     if(frontDistance<SAFE_DISTANCE){
-      haltCar();
+      brakeCar();
       ringBuzzer(200, 2);
       danger = true;
     }
@@ -137,6 +146,7 @@ bool detectDanger(){
     ringBuzzer(800, 2);
     danger = true;
   }
+  Serial.println("Found problem? "+String(danger));
   return danger;
 }
 
@@ -174,16 +184,21 @@ float getDistance(NewPing sonarObj){
     return (duration / 2) * 0.0343;
 }
 
-void lookForLeeway(){
-  float minDistance = 100; // looking for something at least these many cm away
+float lookForLeeway(){
+  float minDistance = 5; // looking for something at least these many cm away
   rotateCar();
-  while(true){
+  delay(50);
+  for(int i=0;i<2000;i++){
     float dist = getFrontDistance();
+    Serial.println("Rotated to see "+String(dist));
     if(dist>=minDistance){
       stopCar();
-      return;
+      return dist;
     }
+    delay(200);
   }
+  Serial.println("Found nothing!");
+  return -1.0;
 }
 
 void rotateCar(){
@@ -200,8 +215,12 @@ void runCar(){
   Serial.println("Running car");
   lightLED(leftLEDPins, GREEN);
   lightLED(rightLEDPins, GREEN);
-  motor1->setSpeed(MAX_SPEED);
-  motor2->setSpeed(MAX_SPEED);
+  // what speed should we go?
+  float frontDistance = getFrontDistance();
+  int motorSpeed = frontDistance>SLOW_DISTANCE ? MAX_SPEED : SLOW_SPEED;
+  Serial.println("Running at "+String(motorSpeed));
+  motor1->setSpeed(motorSpeed);
+  motor2->setSpeed(motorSpeed);
   motor1->run(FORWARD);
   motor2->run(FORWARD);
 }
