@@ -45,9 +45,11 @@ Adafruit_DCMotor *motor2 = AFMS.getMotor(2);
 // motion constants
 const int SAFE_DISTANCE = 10;
 const int SLOW_DISTANCE = 15;
-const int MAX_SPEED = 255;
+const int MAX_SPEED = 245;
 const int MIN_SPEED = 100;
+const int ROTATE_SPEED = 100;
 const int SLOW_SPEED = (MAX_SPEED + MIN_SPEED) / 2;
+const int BRAKE_DISTANCE = 1000;
 
 // globals for the state of the car
 int frontDistance = 0;
@@ -185,7 +187,7 @@ float getDistance(NewPing sonarObj){
 }
 
 float lookForLeeway(){
-  float minDistance = 5; // looking for something at least these many cm away
+  float minDistance = 7; // looking for something at least these many cm away
   rotateCar();
   delay(50);
   for(int i=0;i<2000;i++){
@@ -205,10 +207,14 @@ void rotateCar(){
   Serial.println("Turning car");
   lightLED(leftLEDPins, GREEN);
   lightLED(rightLEDPins, GREEN);
-  motor1->setSpeed(MIN_SPEED);
-  motor2->setSpeed(MIN_SPEED);
+  motor1->setSpeed(ROTATE_SPEED);
+  motor2->setSpeed(compensate(ROTATE_SPEED));
   motor1->run(FORWARD);
   motor2->run(BACKWARD);
+}
+
+int compensate(int vel){
+  return min(255, vel * 1.2);
 }
 
 void runCar(){
@@ -220,7 +226,7 @@ void runCar(){
   int motorSpeed = frontDistance>SLOW_DISTANCE ? MAX_SPEED : SLOW_SPEED;
   Serial.println("Running at "+String(motorSpeed));
   motor1->setSpeed(motorSpeed);
-  motor2->setSpeed(motorSpeed);
+  motor2->setSpeed(compensate(motorSpeed));
   motor1->run(FORWARD);
   motor2->run(FORWARD);
 }
@@ -244,7 +250,7 @@ void brakeCar(){
   lightLED(rightLEDPins, BLUE);
   motor1->run(BACKWARD);
   motor2->run(BACKWARD);
-  delay(300);
+  delay(BRAKE_DISTANCE);
   motor1->run(RELEASE);
   motor2->run(RELEASE);
 }
