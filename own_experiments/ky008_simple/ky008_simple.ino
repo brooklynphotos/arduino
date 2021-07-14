@@ -4,7 +4,7 @@
  */
 
 const int laserPin = 6;
-int delayTime = 100;
+int delayTime = 50;
 
 void setup() {
   Serial.begin(9600);
